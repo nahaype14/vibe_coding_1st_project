@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Charts } from "./components/Charts";
 import { Filters, type FilterState } from "./components/Filters";
 import { Header } from "./components/Header";
@@ -6,8 +6,10 @@ import { SummaryCards } from "./components/SummaryCards";
 import { Tabs } from "./components/Tabs";
 import { TransactionForm } from "./components/TransactionForm";
 import { TransactionList } from "./components/TransactionList";
+import { useExchangeRates } from "./hooks/useExchangeRates";
 import { useLocalStorage } from "./hooks/useLocalStorage";
 import type { CurrencyCode, Transaction } from "./types";
+import { convertAmount } from "./utils/exchangeRates";
 
 const EMPTY_FILTERS: FilterState = { type: "all", category: "all", search: "", from: "", to: "" };
 
@@ -23,14 +25,31 @@ function uid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-function computeTotals(list: Transaction[]) {
+function computeTotals(
+  list: Transaction[],
+  displayCurrency: CurrencyCode,
+  rates: Partial<Record<CurrencyCode, number>> | null,
+) {
   let income = 0;
   let expense = 0;
   for (const t of list) {
-    if (t.type === "income") income += t.amount;
-    else expense += t.amount;
+    const amount = convertAmount(t.amount, t.currency, displayCurrency, rates);
+    if (t.type === "income") income += amount;
+    else expense += amount;
   }
   return { income, expense };
+}
+
+function toDisplayCurrency(
+  list: Transaction[],
+  displayCurrency: CurrencyCode,
+  rates: Partial<Record<CurrencyCode, number>> | null,
+): Transaction[] {
+  return list.map((t) => ({
+    ...t,
+    amount: convertAmount(t.amount, t.currency, displayCurrency, rates),
+    currency: displayCurrency,
+  }));
 }
 
 function App() {
@@ -38,6 +57,16 @@ function App() {
   const [currency, setCurrency] = useLocalStorage<CurrencyCode>("expense-tracker:currency", "RUB");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [tab, setTab] = useState<TabId>("overview");
+  const { rates, status: ratesStatus, fetchedAt: ratesFetchedAt, refresh: refreshRates } = useExchangeRates();
+
+  // Transactions saved before per-transaction currency tracking was added have no `currency` —
+  // assume they were entered in the app's original default currency (RUB).
+  useEffect(() => {
+    setTransactions((prev) =>
+      prev.some((t) => !t.currency) ? prev.map((t) => (t.currency ? t : { ...t, currency: "RUB" })) : prev,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function addTransaction(t: Omit<Transaction, "id">) {
     setTransactions((prev) => [{ ...t, id: uid() }, ...prev]);
@@ -58,13 +87,21 @@ function App() {
       .sort((a, b) => (a.date < b.date ? 1 : -1));
   }, [transactions, filters]);
 
-  const overallTotals = useMemo(() => computeTotals(transactions), [transactions]);
-  const filteredTotals = useMemo(() => computeTotals(filtered), [filtered]);
+  const overallTotals = useMemo(
+    () => computeTotals(transactions, currency, rates),
+    [transactions, currency, rates],
+  );
+  const filteredTotals = useMemo(() => computeTotals(filtered, currency, rates), [filtered, currency, rates]);
+
+  const overviewChartData = useMemo(
+    () => toDisplayCurrency(transactions, currency, rates),
+    [transactions, currency, rates],
+  );
 
   async function exportCsv() {
-    const header = "Дата,Тип,Категория,Сумма,Комментарий";
+    const header = "Дата,Тип,Категория,Сумма,Валюта,Комментарий";
     const rows = filtered.map((t) =>
-      [t.date, t.type === "income" ? "Доход" : "Расход", t.category, t.amount, t.note ?? ""]
+      [t.date, t.type === "income" ? "Доход" : "Расход", t.category, t.amount, t.currency, t.note ?? ""]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(","),
     );
@@ -98,14 +135,22 @@ function App() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6">
-        <Header currency={currency} onCurrencyChange={setCurrency} onExport={exportCsv} hasData={filtered.length > 0} />
+        <Header
+          currency={currency}
+          onCurrencyChange={setCurrency}
+          onExport={exportCsv}
+          hasData={filtered.length > 0}
+          ratesStatus={ratesStatus}
+          ratesFetchedAt={ratesFetchedAt}
+          onRefreshRates={refreshRates}
+        />
 
         <Tabs tabs={[...TABS]} active={tab} onChange={(id) => setTab(id as TabId)} />
 
         {tab === "overview" && (
           <>
             <SummaryCards income={overallTotals.income} expense={overallTotals.expense} currency={currency} />
-            <Charts transactions={transactions} currency={currency} />
+            <Charts transactions={overviewChartData} currency={currency} />
             {transactions.length === 0 && (
               <div className="rounded-2xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-500 dark:border-slate-700">
                 Записей пока нет. Перейдите во вкладку «Добавить», чтобы внести первую операцию.
@@ -114,15 +159,13 @@ function App() {
           </>
         )}
 
-        {tab === "add" && (
-          <TransactionForm onAdd={addTransaction} />
-        )}
+        {tab === "add" && <TransactionForm currency={currency} onAdd={addTransaction} />}
 
         {tab === "transactions" && (
           <>
             <SummaryCards income={filteredTotals.income} expense={filteredTotals.expense} currency={currency} />
             <Filters filters={filters} onChange={setFilters} />
-            <TransactionList transactions={filtered} currency={currency} onDelete={deleteTransaction} />
+            <TransactionList transactions={filtered} currency={currency} rates={rates} onDelete={deleteTransaction} />
           </>
         )}
 

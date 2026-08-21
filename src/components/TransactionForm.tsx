@@ -1,13 +1,14 @@
 import { useId, useState } from "react";
-import type { Transaction, TransactionType } from "../types";
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "../types";
+import type { CurrencyCode, Transaction, TransactionType } from "../types";
+import { CURRENCIES, EXPENSE_CATEGORIES, INCOME_CATEGORIES } from "../types";
 import { todayISO } from "../utils/format";
 
 interface Props {
+  currency: CurrencyCode;
   onAdd: (t: Omit<Transaction, "id">) => void;
 }
 
-export function TransactionForm({ onAdd }: Props) {
+export function TransactionForm({ currency, onAdd }: Props) {
   const formId = useId();
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
@@ -34,7 +35,7 @@ export function TransactionForm({ onAdd }: Props) {
       setError("Укажите дату");
       return;
     }
-    onAdd({ type, amount: parsed, category, date, note: note.trim() || undefined });
+    onAdd({ type, amount: parsed, currency, category, date, note: note.trim() || undefined });
     setAmount("");
     setNote("");
     setError("");
@@ -73,7 +74,7 @@ export function TransactionForm({ onAdd }: Props) {
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2 sm:col-span-1">
           <label htmlFor={`${formId}-amount`} className="mb-1 block text-xs font-medium text-slate-500">
-            Сумма
+            Сумма, {CURRENCIES.find((c) => c.code === currency)?.label ?? currency}
           </label>
           <input
             id={`${formId}-amount`}

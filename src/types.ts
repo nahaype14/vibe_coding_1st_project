@@ -4,6 +4,8 @@ export interface Transaction {
   id: string;
   type: TransactionType;
   amount: number;
+  /** Currency the amount was entered in — the display currency can differ and gets converted on the fly. */
+  currency: CurrencyCode;
   category: string;
   date: string; // YYYY-MM-DD
   note?: string;
