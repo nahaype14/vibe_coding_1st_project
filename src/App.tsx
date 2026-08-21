@@ -57,7 +57,13 @@ function App() {
   const [currency, setCurrency] = useLocalStorage<CurrencyCode>("expense-tracker:currency", "RUB");
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS);
   const [tab, setTab] = useState<TabId>("overview");
-  const { rates, status: ratesStatus, fetchedAt: ratesFetchedAt, refresh: refreshRates } = useExchangeRates();
+  const {
+    rates,
+    isLive: ratesAreLive,
+    status: ratesStatus,
+    fetchedAt: ratesFetchedAt,
+    refresh: refreshRates,
+  } = useExchangeRates();
 
   // Transactions saved before per-transaction currency tracking was added have no `currency` —
   // assume they were entered in the app's original default currency (RUB).
@@ -141,6 +147,7 @@ function App() {
           onExport={exportCsv}
           hasData={filtered.length > 0}
           ratesStatus={ratesStatus}
+          ratesAreLive={ratesAreLive}
           ratesFetchedAt={ratesFetchedAt}
           onRefreshRates={refreshRates}
         />

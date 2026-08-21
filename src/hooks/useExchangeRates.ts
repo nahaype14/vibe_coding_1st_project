@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchExchangeRates, type RatesSnapshot } from "../utils/exchangeRates";
+import { FALLBACK_RATES, fetchExchangeRates, type RatesSnapshot } from "../utils/exchangeRates";
 import { useLocalStorage } from "./useLocalStorage";
 
 const STALE_AFTER_MS = 12 * 60 * 60 * 1000; // 12 hours
@@ -29,7 +29,10 @@ export function useExchangeRates() {
   }, []);
 
   return {
-    rates: snapshot?.rates ?? null,
+    // Conversion always has something to work with: the live snapshot when we
+    // have one, otherwise the built-in fallback table (never null/1:1-only).
+    rates: snapshot?.rates ?? FALLBACK_RATES,
+    isLive: snapshot !== null,
     fetchedAt: snapshot?.fetchedAt ?? null,
     status,
     refresh,

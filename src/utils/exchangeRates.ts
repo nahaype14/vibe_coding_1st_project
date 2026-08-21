@@ -3,6 +3,22 @@ import type { CurrencyCode } from "../types";
 const RATES_URL = "https://open.er-api.com/v6/latest/USD";
 const FETCH_TIMEOUT_MS = 8000;
 
+/**
+ * Built-in snapshot (USD-based) used whenever a live rate fetch is unavailable —
+ * e.g. the app is embedded somewhere that blocks outbound requests, or the
+ * device is offline. Keeps conversion working everywhere instead of silently
+ * falling back to "1:1", at the cost of drifting out of date over time.
+ */
+export const FALLBACK_RATES: Partial<Record<CurrencyCode, number>> = {
+  USD: 1,
+  EUR: 0.86,
+  GBP: 0.75,
+  RUB: 80,
+  KZT: 456.24,
+  UAH: 41.5,
+  BYN: 3.05,
+};
+
 export interface RatesSnapshot {
   base: "USD";
   rates: Partial<Record<CurrencyCode, number>>;

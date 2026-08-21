@@ -8,6 +8,7 @@ interface Props {
   onExport: () => void;
   hasData: boolean;
   ratesStatus: RatesStatus;
+  ratesAreLive: boolean;
   ratesFetchedAt: number | null;
   onRefreshRates: () => void;
 }
@@ -27,6 +28,7 @@ export function Header({
   onExport,
   hasData,
   ratesStatus,
+  ratesAreLive,
   ratesFetchedAt,
   onRefreshRates,
 }: Props) {
@@ -63,9 +65,14 @@ export function Header({
 
       <div className="flex items-center gap-2 text-xs text-slate-500">
         {ratesStatus === "loading" && <span>Обновление курса валют…</span>}
-        {ratesStatus === "error" && <span className="text-rose-600 dark:text-rose-400">Не удалось получить курс валют</span>}
-        {ratesStatus === "idle" && ratesFetchedAt && <span>Курс обновлён: {formatFetchedAt(ratesFetchedAt)}</span>}
-        {ratesStatus === "idle" && !ratesFetchedAt && <span>Курс валют ещё не загружен</span>}
+        {ratesStatus !== "loading" && ratesAreLive && ratesFetchedAt && (
+          <span>Курс обновлён: {formatFetchedAt(ratesFetchedAt)}</span>
+        )}
+        {ratesStatus !== "loading" && !ratesAreLive && (
+          <span className="text-amber-600 dark:text-amber-400" title="Не удалось подключиться к сервису курсов валют">
+            Курс приблизительный (нет соединения)
+          </span>
+        )}
         <button
           type="button"
           onClick={onRefreshRates}
