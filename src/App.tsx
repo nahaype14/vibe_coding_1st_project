@@ -61,7 +61,7 @@ function App() {
   const overallTotals = useMemo(() => computeTotals(transactions), [transactions]);
   const filteredTotals = useMemo(() => computeTotals(filtered), [filtered]);
 
-  function exportCsv() {
+  async function exportCsv() {
     const header = "Дата,Тип,Категория,Сумма,Комментарий";
     const rows = filtered.map((t) =>
       [t.date, t.type === "income" ? "Доход" : "Расход", t.category, t.amount, t.note ?? ""]
@@ -69,11 +69,28 @@ function App() {
         .join(","),
     );
     const csv = [header, ...rows].join("\n");
+    const filename = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+
+    let claudeDownloads: ClaudeDownloads | null = null;
+    try {
+      claudeDownloads = (await window.claude?.use("downloads")) ?? null;
+    } catch {
+      claudeDownloads = null;
+    }
+    if (claudeDownloads) {
+      try {
+        await claudeDownloads.save({ filename, data: "﻿" + csv });
+        return;
+      } catch {
+        // fall through to the direct browser download below
+      }
+    }
+
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = filename;
     link.click();
     URL.revokeObjectURL(url);
   }

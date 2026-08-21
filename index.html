@@ -6,6 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Простое веб-приложение для учёта личных доходов и расходов" />
     <title>Учёт доходов и расходов</title>
+    <script>
+      (function () {
+        function applyTheme() {
+          var explicit = document.documentElement.getAttribute("data-theme");
+          var prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          var isDark = explicit === "dark" || (explicit !== "light" && prefersDark);
+          document.documentElement.classList.toggle("dark", isDark);
+        }
+        applyTheme();
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+        new MutationObserver(applyTheme).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-theme"],
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
