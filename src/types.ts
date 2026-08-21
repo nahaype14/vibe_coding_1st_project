@@ -18,6 +18,7 @@ export const EXPENSE_CATEGORIES = [
   "Одежда",
   "Связь и интернет",
   "Образование",
+  "В долг",
   "Прочее",
 ] as const;
 
